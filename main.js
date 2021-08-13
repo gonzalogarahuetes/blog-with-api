@@ -10,26 +10,7 @@ document.getElementById("carousel-2").src =
 document.getElementById("carousel-3").src =
   "https://picsum.photos/id/55/1000/400";
 
-//---------------------------------------------------LOAD MORE POSTS
-
-
-
-
-
-
-
-// btnMore.addEventListener("click", function loadPosts() {
-//   let row1 = document.createElement("div");
-//   row1.className = "row gap-2";
-//   row1.textContent();
-//   let row2 = document.createElement("div");
-//   row2.className = "row gap-2";
-//   divCont.appendChild(row1);
-//   divCont.appendChild(row2);
-// });
-
 //---------------------------------------------------ADDING IDS TO CARDS AND MORE
-
 
 function ids() {
   let cards = document.querySelectorAll(".card");
@@ -47,7 +28,7 @@ function ids() {
 
     //We get the information of each post and fill the cards with it
 
-    fetch(`https://jsonplaceholder.typicode.com/posts/${index + 1}`)
+    fetch(`http://localhost:3000/posts/${index + 1}`)
       .then((response) => {
         return response.json();
       })
@@ -78,19 +59,21 @@ function fillingModal(e) {
   let btnID = parseInt(e.target.id.slice(4, e.target.id.length));
   let modal = document.querySelector("#modal-content");
   let modalTitle = document.getElementById("modal_title");
-  let modalBody = document.getElementById("modal_body");
   let userInfo = document.createElement("section");
   let listComments = document.createElement("section");
   let btnComments = document.querySelector("#btn-comments");
+  let btnEdit = document.querySelector("#btn-edit");
+  let btnDelete = document.querySelector("#btn-delete");
+  let modalBody = document.getElementById("modal_body");
 
   //We search inside the API for the post with the btnID + 1 id
 
-  fetch(`https://jsonplaceholder.typicode.com/posts/${btnID + 1}`)
+  fetch(`http://localhost:3000/posts/${btnID + 1}`)
     .then((response) => {
       return response.json();
     })
     .then((response) => {
-      modalTitle.textContent = response.title;
+      modalTitle.innerHTML = `${response.id} - <span id="title-post">${response.title}</span>`;
       modalBody.textContent = response.body;
 
       //Whenever you call a function with a local parameter like userID (myFunct(parameter)), you pass the value of the parameter to the second function
@@ -101,7 +84,7 @@ function fillingModal(e) {
   //We need the user's information to fill the modal
 
   function userData(userID) {
-    fetch(`https://jsonplaceholder.typicode.com/users/${userID}`)
+    fetch(`http://localhost:3000/users/${userID}`)
       .then((response) => {
         return response.json();
       })
@@ -135,11 +118,7 @@ function fillingModal(e) {
   }
 
   btnComments.addEventListener("click", function myComments() {
-    fetch(
-      `https://jsonplaceholder.typicode.com/comments?postId=${
-        btnID + 1
-      }&_limit=2`
-    )
+    fetch(`http://localhost:3000/comments?postId=${btnID + 1}&_limit=2`)
       .then((response) => {
         return response.json();
       })
@@ -147,19 +126,23 @@ function fillingModal(e) {
         document.querySelector(".modal-footer").classList.add("d-none");
         listComments.id = "list-comments";
         for (let comment of response) {
-          let commentDiv = document.createElement("div");
-          commentDiv.className = "modal-body";
-          commentDiv.style.borderTop = "1px solid lightgrey";
-          let commentUserName = document.createElement("p");
-          commentUserName.innerHTML = `<b>${comment.name}</b>`;
-          let commentMail = document.createElement("p");
-          commentMail.innerHTML = `<b>${comment.email}</b>`;
-          let commentBody = document.createElement("p");
-          commentBody.innerHTML = comment.body;
-          commentDiv.appendChild(commentUserName);
-          commentDiv.appendChild(commentBody);
-          commentDiv.appendChild(commentMail);
-          listComments.appendChild(commentDiv);
+          listComments.innerHTML += `
+          <div class="modal-body d-flex" style="border-top: 1px solid lightgrey;">
+            <div class="flex-grow-1">
+              <p><b>${comment.name}</b></p>
+              <p>${comment.body}</p>
+              <p><b>${comment.email}</b></p>
+            </div>
+            <div class="d-flex flex-column align-items-start gap-2" id="icons-div">
+              <a href="">
+                <img src="./img/writing.svg" style="width: 2rem">
+              </a>
+              <a href="">
+                <img src="./img/eraser.svg" style="width: 2rem">
+              </a>
+            </div>
+          </div>
+          `;
           modal.insertBefore(listComments, modal.children[3]);
         }
       });
@@ -167,4 +150,87 @@ function fillingModal(e) {
     //! It also gets duplicated the next time we load other comments if we do not remove it here!
     btnComments.removeEventListener("click", myComments);
   });
+
+  btnEdit.addEventListener("click", editPost);
+  btnDelete.addEventListener("click", deletePost);
+}
+
+//---------------------------------------------------EDIT POST
+
+function editPost() {
+  let title = document.getElementById("title-post");
+  let body = document.getElementById("modal_body");
+
+  //We erase here the buttons to give more space inside the modal
+  document.querySelector(".modal-footer").classList.add("d-none");
+
+  //Now the title and the body of the post must appear as editable textareas
+  body.innerHTML = `
+  <textarea name="textarea" id="textarea-body" class="w-100" style="height: 8rem">${
+    document.getElementById("modal_body").textContent
+  }</textarea>`;
+
+  title.innerHTML = `
+  <textarea name="textarea" id="textarea-title" class="w-100" style="height: 2.5rem">${
+    document.getElementById("title-post").textContent
+  }</textarea>`;
+
+  //We reset the user-info div so that it has the new button "Edit"
+  document.getElementById("user-info").innerHTML = `
+  <div class="modal-body d-flex">
+            <div class="flex-grow-1">
+              ${document.getElementById("user-info").innerHTML}
+            </div>
+            <div class="d-flex align-items-center">
+            <button type="button" id="btn-confirm" class="btn btn-warning">
+            Edit
+          </button>
+            </div>
+          </div>
+  `;
+  //We need to remove the event listener of the button to avoid conflicts and duplications
+  document.querySelector("#btn-edit").removeEventListener("click", editPost);
+
+  //And now we set the new confirm "Edit" button to patch the changes
+  document
+    .querySelector("#btn-confirm")
+    .addEventListener("click", function confirmEdit() {
+      let idAgain = eval(
+        document.querySelector("#modal_title").textContent.substring(0, 2)
+      );
+      let titleArea = document.querySelector("#textarea-title").value;
+      let bodyArea = document.querySelector("#textarea-body").value;
+
+      fetch(`http://localhost:3000/posts/${idAgain}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: titleArea, body: bodyArea }),
+        headers: { "Content-type": "application/JSON; charset:UTF-8" },
+      }).then((response) => {
+        response.json();
+      });
+      document
+        .querySelector("#btn-confirm")
+        .removeEventListener("click", confirmEdit);
+    });
+}
+
+//---------------------------------------------------DELETE POST
+
+function deletePost() {
+  let idAgain2 = eval(
+    document.querySelector("#modal_title").textContent.substring(0, 2)
+  );
+  fetch(
+    `http://localhost:3000/posts/${idAgain2}`,
+    {
+      method: "DELETE",
+      headers: { "Content-type": "application/JSON; charset:UTF-8" },
+    },
+    null
+  ).then((response) => {
+    response.json();
+  });
+  document
+    .querySelector("#btn-delete")
+    .removeEventListener("click", deletePost);
 }
